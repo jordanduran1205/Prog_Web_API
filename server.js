@@ -1,10 +1,12 @@
 // server.js
 import express from "express";
 import { db } from "./db.js";
+import authRouter, { verificarToken, soloAdmin } from "./auth.js";
 
 const app = express();
 app.set("json spaces", 2);
 app.use(express.json());
+app.use(authRouter);
 
 // Valida nombre, precio y stock. Devuelve true si son válidos.
 function datosValidos({ nombre, precio, stock }) {
@@ -29,7 +31,7 @@ async function buscarPorId(id) {
   return filas[0];
 }
 
-// GET /productos -> lista todos
+// GET /productos -> lista todos (público)
 app.get(
   "/productos",
   asincrono(async (req, res) => {
@@ -38,7 +40,7 @@ app.get(
   })
 );
 
-// GET /productos/:id -> devuelve uno
+// GET /productos/:id -> devuelve uno (público)
 app.get(
   "/productos/:id",
   asincrono(async (req, res) => {
@@ -52,9 +54,10 @@ app.get(
   })
 );
 
-// POST /productos -> crea uno nuevo
+// POST /productos -> crea uno nuevo (requiere token)
 app.post(
   "/productos",
+  verificarToken,
   asincrono(async (req, res) => {
     const { nombre, precio, stock } = req.body;
 
@@ -73,9 +76,10 @@ app.post(
   })
 );
 
-// PUT /productos/:id -> reemplaza TODOS los campos
+// PUT /productos/:id -> reemplaza TODOS los campos (requiere token)
 app.put(
   "/productos/:id",
+  verificarToken,
   asincrono(async (req, res) => {
     const id = Number(req.params.id);
 
@@ -100,9 +104,10 @@ app.put(
   })
 );
 
-// PATCH /productos/:id -> cambia solo algunos campos
+// PATCH /productos/:id -> cambia solo algunos campos (requiere token)
 app.patch(
   "/productos/:id",
+  verificarToken,
   asincrono(async (req, res) => {
     const id = Number(req.params.id);
     const producto = await buscarPorId(id);
@@ -137,9 +142,11 @@ app.patch(
   })
 );
 
-// DELETE /productos/:id -> borra
+// DELETE /productos/:id -> borra (requiere token y rol admin)
 app.delete(
   "/productos/:id",
+  verificarToken,
+  soloAdmin,
   asincrono(async (req, res) => {
     const [resultado] = await db.query("DELETE FROM productos WHERE id = ?", [
       Number(req.params.id),
