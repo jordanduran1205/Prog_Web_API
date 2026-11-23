@@ -1,7 +1,8 @@
 // server.js
 import express from "express";
 import { db } from "./db.js";
-import authRouter, { verificarToken, soloAdmin } from "./auth.js";
+import authRouter from "./auth.js";
+import { verificarToken, soloAdmin } from "./middlewares.js";
 
 const app = express();
 app.set("json spaces", 2);

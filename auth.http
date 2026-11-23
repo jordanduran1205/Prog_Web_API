@@ -1,5 +1,8 @@
-### Registrar usuario
-POST http://localhost:3000/register
+### 1. Listar productos (público, sin token)
+GET http://localhost:3000/productos
+
+### 2. Registrar usuario (solo una vez; si repites da 409)
+POST http://localhost:3000/registro
 Content-Type: application/json
 
 {
@@ -7,7 +10,8 @@ Content-Type: application/json
   "password": "1234"
 }
 
-### Login
+### 3. Login (hazlo primero, guarda el token automáticamente)
+# @name login
 POST http://localhost:3000/login
 Content-Type: application/json
 
@@ -15,3 +19,48 @@ Content-Type: application/json
   "email": "jordan@test.com",
   "password": "1234"
 }
+
+### 4. Crear producto SIN token (debe dar 401)
+POST http://localhost:3000/productos
+Content-Type: application/json
+
+{
+  "nombre": "Monitor",
+  "precio": 450000,
+  "stock": 5
+}
+
+### 5. Crear producto CON token (debe dar 201)
+POST http://localhost:3000/productos
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nombre": "Monitor",
+  "precio": 450000,
+  "stock": 5
+}
+
+### 6. Editar producto completo con PUT (requiere token)
+PUT http://localhost:3000/productos/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "nombre": "Teclado Gamer",
+  "precio": 95000,
+  "stock": 8
+}
+
+### 7. Editar solo el precio con PATCH (requiere token)
+PATCH http://localhost:3000/productos/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "precio": 90000
+}
+
+### 8. Borrar producto como usuario normal (debe dar 403)
+DELETE http://localhost:3000/productos/1
+Authorization: Bearer {{login.response.body.token}}

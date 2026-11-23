@@ -6,8 +6,8 @@ import { db } from "./db.js";
 
 const router = Router();
 
-// POST /register -> crea un usuario (la clave se guarda como hash)
-router.post("/register", async (req, res, next) => {
+// POST /registro -> crea un usuario (la clave se guarda como hash)
+router.post("/registro", async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -38,7 +38,7 @@ router.post("/register", async (req, res, next) => {
   }
 });
 
-// POST /login -> entrega el token
+// POST /login -> compara y devuelve { token }
 router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -68,29 +68,5 @@ router.post("/login", async (req, res, next) => {
     next(err);
   }
 });
-
-// Middleware: exige un token válido -> 401 si falta o está vencido
-export function verificarToken(req, res, next) {
-  const [tipo, token] = (req.headers.authorization || "").split(" ");
-
-  if (tipo !== "Bearer" || !token) {
-    return res.status(401).json({ error: "Token requerido" });
-  }
-
-  try {
-    req.usuario = jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch {
-    res.status(401).json({ error: "Token inválido o vencido" });
-  }
-}
-
-// Middleware: solo admin -> 403 si tiene token pero no permiso
-export function soloAdmin(req, res, next) {
-  if (req.usuario?.rol !== "admin") {
-    return res.status(403).json({ error: "No tienes permiso para esta acción" });
-  }
-  next();
-}
 
 export default router;
