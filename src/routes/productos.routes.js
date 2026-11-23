@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../db.js";
+import { prisma } from "../prisma.js";
 import { datosValidos } from "../validaciones.js";
 import { verificarToken, soloAdmin } from "../middlewares/auth.middleware.js";
 
@@ -9,17 +9,21 @@ const router = Router();
 const asincrono = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
+// Prisma devuelve el precio como Decimal; lo pasamos a número con Number()
+const aProducto = (p) => ({ ...p, precio: Number(p.precio) });
+
+// Busca un producto por id (null si no existe o el id no es un número)
 async function buscarPorId(id) {
-  const [filas] = await db.query("SELECT * FROM productos WHERE id = ?", [id]);
-  return filas[0];
+  if (!Number.isInteger(id)) return null;
+  return prisma.productos.findUnique({ where: { id } });
 }
 
 // GET /productos -> público
 router.get(
   "/",
   asincrono(async (req, res) => {
-    const [filas] = await db.query("SELECT * FROM productos");
-    res.status(200).json(filas);
+    const productos = await prisma.productos.findMany();
+    res.status(200).json(productos.map(aProducto));
   })
 );
 
@@ -33,7 +37,7 @@ router.get(
       return res.status(404).json({ error: "Producto no encontrado" });
     }
 
-    res.status(200).json(producto);
+    res.status(200).json(aProducto(producto));
   })
 );
 
@@ -50,12 +54,11 @@ router.post(
       });
     }
 
-    const [resultado] = await db.query(
-      "INSERT INTO productos (nombre, precio, stock) VALUES (?, ?, ?)",
-      [nombre.trim(), precio, stock]
-    );
+    const nuevo = await prisma.productos.create({
+      data: { nombre: nombre.trim(), precio, stock },
+    });
 
-    res.status(201).json({ id: resultado.insertId, nombre: nombre.trim(), precio, stock });
+    res.status(201).json(aProducto(nuevo));
   })
 );
 
@@ -78,12 +81,12 @@ router.put(
       });
     }
 
-    await db.query(
-      "UPDATE productos SET nombre = ?, precio = ?, stock = ? WHERE id = ?",
-      [nombre.trim(), precio, stock, id]
-    );
+    const actualizado = await prisma.productos.update({
+      where: { id },
+      data: { nombre: nombre.trim(), precio, stock },
+    });
 
-    res.status(200).json({ id, nombre: nombre.trim(), precio, stock });
+    res.status(200).json(aProducto(actualizado));
   })
 );
 
@@ -108,20 +111,22 @@ router.patch(
       return res.status(400).json({ error: "Envía al menos un campo: nombre, precio o stock" });
     }
 
-    const actualizado = { ...producto, ...cambios };
+    const combinado = { ...aProducto(producto), ...cambios };
 
-    if (!datosValidos(actualizado)) {
+    if (!datosValidos(combinado)) {
       return res.status(400).json({ error: "Alguno de los datos enviados no es válido" });
     }
 
-    actualizado.nombre = actualizado.nombre.trim();
+    const actualizado = await prisma.productos.update({
+      where: { id },
+      data: {
+        nombre: combinado.nombre.trim(),
+        precio: combinado.precio,
+        stock: combinado.stock,
+      },
+    });
 
-    await db.query(
-      "UPDATE productos SET nombre = ?, precio = ?, stock = ? WHERE id = ?",
-      [actualizado.nombre, actualizado.precio, actualizado.stock, id]
-    );
-
-    res.status(200).json(actualizado);
+    res.status(200).json(aProducto(actualizado));
   })
 );
 
@@ -131,15 +136,16 @@ router.delete(
   verificarToken,
   soloAdmin,
   asincrono(async (req, res) => {
-    const [resultado] = await db.query("DELETE FROM productos WHERE id = ?", [
-      Number(req.params.id),
-    ]);
-
-    if (resultado.affectedRows === 0) {
-      return res.status(404).json({ error: "Producto no encontrado" });
+    try {
+      await prisma.productos.delete({ where: { id: Number(req.params.id) } });
+      res.status(204).send();
+    } catch (err) {
+      // P2025 = el registro no existe
+      if (err.code === "P2025") {
+        return res.status(404).json({ error: "Producto no encontrado" });
+      }
+      throw err;
     }
-
-    res.status(204).send();
   })
 );
 
