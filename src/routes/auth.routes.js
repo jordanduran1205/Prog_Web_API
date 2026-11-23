@@ -1,12 +1,11 @@
-// auth.js
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { db } from "./db.js";
+import { db } from "../db.js";
 
 const router = Router();
 
-// POST /registro -> crea un usuario (la clave se guarda como hash)
+// POST /registro -> guarda con bcrypt.hash
 router.post("/registro", async (req, res, next) => {
   try {
     const { email, password } = req.body;

@@ -1,7 +1,6 @@
-// middlewares.js
 import jwt from "jsonwebtoken";
 
-// Revisa el token antes de que se ejecute la ruta -> 401 si falta o está vencido
+// Revisa el token antes de la ruta -> 401 si falta o está vencido
 export function verificarToken(req, res, next) {
   const header = req.headers.authorization ?? "";
   const [tipo, token] = header.split(" ");
@@ -18,7 +17,7 @@ export function verificarToken(req, res, next) {
   }
 }
 
-// Solo admin -> 403 si tiene token pero no tiene permiso
+// Solo admin -> 403 si tiene token pero no permiso
 export function soloAdmin(req, res, next) {
   if (req.usuario?.rol !== "admin") {
     return res.status(403).json({ error: "No tienes permiso para esta acción" });

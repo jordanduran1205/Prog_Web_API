@@ -1,49 +1,31 @@
-// server.js
-import express from "express";
-import { db } from "./db.js";
-import authRouter from "./auth.js";
-import { verificarToken, soloAdmin } from "./middlewares.js";
+import { Router } from "express";
+import { db } from "../db.js";
+import { datosValidos } from "../validaciones.js";
+import { verificarToken, soloAdmin } from "../middlewares/auth.middleware.js";
 
-const app = express();
-app.set("json spaces", 2);
-app.use(express.json());
-app.use(authRouter);
-
-// Valida nombre, precio y stock. Devuelve true si son válidos.
-function datosValidos({ nombre, precio, stock }) {
-  return (
-    typeof nombre === "string" &&
-    nombre.trim() !== "" &&
-    typeof precio === "number" &&
-    precio >= 0 &&
-    typeof stock === "number" &&
-    Number.isInteger(stock) &&
-    stock >= 0
-  );
-}
+const router = Router();
 
 // Envuelve las rutas async para que los errores lleguen al manejador de errores
 const asincrono = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
-// Busca un producto por id (devuelve undefined si no existe)
 async function buscarPorId(id) {
   const [filas] = await db.query("SELECT * FROM productos WHERE id = ?", [id]);
   return filas[0];
 }
 
-// GET /productos -> lista todos (público)
-app.get(
-  "/productos",
+// GET /productos -> público
+router.get(
+  "/",
   asincrono(async (req, res) => {
     const [filas] = await db.query("SELECT * FROM productos");
     res.status(200).json(filas);
   })
 );
 
-// GET /productos/:id -> devuelve uno (público)
-app.get(
-  "/productos/:id",
+// GET /productos/:id -> público
+router.get(
+  "/:id",
   asincrono(async (req, res) => {
     const producto = await buscarPorId(Number(req.params.id));
 
@@ -55,9 +37,9 @@ app.get(
   })
 );
 
-// POST /productos -> crea uno nuevo (requiere token)
-app.post(
-  "/productos",
+// POST /productos -> requiere token
+router.post(
+  "/",
   verificarToken,
   asincrono(async (req, res) => {
     const { nombre, precio, stock } = req.body;
@@ -77,9 +59,9 @@ app.post(
   })
 );
 
-// PUT /productos/:id -> reemplaza TODOS los campos (requiere token)
-app.put(
-  "/productos/:id",
+// PUT /productos/:id -> requiere token
+router.put(
+  "/:id",
   verificarToken,
   asincrono(async (req, res) => {
     const id = Number(req.params.id);
@@ -105,9 +87,9 @@ app.put(
   })
 );
 
-// PATCH /productos/:id -> cambia solo algunos campos (requiere token)
-app.patch(
-  "/productos/:id",
+// PATCH /productos/:id -> requiere token
+router.patch(
+  "/:id",
   verificarToken,
   asincrono(async (req, res) => {
     const id = Number(req.params.id);
@@ -143,9 +125,9 @@ app.patch(
   })
 );
 
-// DELETE /productos/:id -> borra (requiere token y rol admin)
-app.delete(
-  "/productos/:id",
+// DELETE /productos/:id -> token + admin
+router.delete(
+  "/:id",
   verificarToken,
   soloAdmin,
   asincrono(async (req, res) => {
@@ -161,10 +143,4 @@ app.delete(
   })
 );
 
-// Manejador de errores (por ejemplo, si MySQL está apagado)
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: "Error del servidor", detalle: err.code });
-});
-
-app.listen(3000, () => console.log("Servidor listo"));
+export default router;
